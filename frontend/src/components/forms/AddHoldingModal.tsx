@@ -19,7 +19,7 @@ export function AddHoldingModal({ onClose, prefillTicker, prefillType, prefillCo
 
   const [ticker, setTicker] = useState(prefillTicker ?? "");
   const [type, setType] = useState<"stock" | "crypto">(prefillType ?? "stock");
-  const [coinId, setCoinId] = useState(prefillCoinId ?? ""); // only used for chart history (CoinGecko ID)
+  const [coinId] = useState(prefillCoinId ?? ""); // only used for chart history (CoinGecko ID)
   const [quantity, setQuantity] = useState("");
   const [price, setPrice] = useState("");
   const [date, setDate] = useState(new Date().toISOString().split("T")[0]);

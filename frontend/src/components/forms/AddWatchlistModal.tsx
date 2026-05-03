@@ -10,14 +10,19 @@ interface Props {
   prefillCoinId?: string;
 }
 
-export function AddWatchlistModal({ onClose, prefillTicker, prefillType, prefillCoinId }: Props) {
+export function AddWatchlistModal({
+  onClose,
+  prefillTicker,
+  prefillType,
+}: // prefillCoinId,
+Props) {
   const addToWatchlist = usePortfolioStore((s) => s.addToWatchlist);
   const setPrices = usePortfolioStore((s) => s.setPrices);
   const prices = usePortfolioStore((s) => s.prices);
 
   const [ticker, setTicker] = useState(prefillTicker ?? "");
   const [type, setType] = useState<"stock" | "crypto">(prefillType ?? "stock");
-  const [coinId, setCoinId] = useState(prefillCoinId ?? "");
+  // const [coinId, setCoinId] = useState(prefillCoinId ?? "");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -50,7 +55,10 @@ export function AddWatchlistModal({ onClose, prefillTicker, prefillType, prefill
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center" onClick={onClose}>
+    <div
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center"
+      onClick={onClose}
+    >
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
       <div
         className="relative w-full sm:max-w-md bg-[#1a1d27] border border-slate-700/50 rounded-t-3xl sm:rounded-2xl p-6 slide-up sm:animate-none"
@@ -60,21 +68,32 @@ export function AddWatchlistModal({ onClose, prefillTicker, prefillType, prefill
 
         <div className="flex items-center justify-between mb-5">
           <h2 className="text-lg font-bold text-white">Add to Watchlist</h2>
-          <button onClick={onClose} className="text-slate-400 hover:text-white text-xl leading-none">✕</button>
+          <button
+            onClick={onClose}
+            className="text-slate-400 hover:text-white text-xl leading-none"
+          >
+            ✕
+          </button>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           {!hasPreFill && (
             <>
               <div>
-                <label className="text-xs text-slate-400 mb-1 block">Type</label>
+                <label className="text-xs text-slate-400 mb-1 block">
+                  Type
+                </label>
                 <div className="flex rounded-xl overflow-hidden border border-slate-700">
                   {(["stock", "crypto"] as const).map((t) => (
                     <button
                       key={t}
                       type="button"
                       onClick={() => setType(t)}
-                      className={`flex-1 py-2.5 text-sm font-medium transition-colors capitalize ${type === t ? "bg-indigo-600 text-white" : "bg-transparent text-slate-400 hover:text-white"}`}
+                      className={`flex-1 py-2.5 text-sm font-medium transition-colors capitalize ${
+                        type === t
+                          ? "bg-indigo-600 text-white"
+                          : "bg-transparent text-slate-400 hover:text-white"
+                      }`}
                     >
                       {t}
                     </button>
@@ -83,7 +102,9 @@ export function AddWatchlistModal({ onClose, prefillTicker, prefillType, prefill
               </div>
 
               <div>
-                <label className="text-xs text-slate-400 mb-1 block">Ticker Symbol</label>
+                <label className="text-xs text-slate-400 mb-1 block">
+                  Ticker Symbol
+                </label>
                 <input
                   type="text"
                   value={ticker}
@@ -93,14 +114,15 @@ export function AddWatchlistModal({ onClose, prefillTicker, prefillType, prefill
                   className="w-full bg-[#0f1117] border border-slate-700 rounded-xl px-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
                 />
               </div>
-
             </>
           )}
 
           {hasPreFill && (
             <div className="bg-[#0f1117] rounded-xl px-4 py-3 text-sm flex items-center gap-3">
               <span className="text-white font-semibold">{prefillTicker}</span>
-              <span className="text-xs bg-slate-700/50 text-slate-400 px-2 py-0.5 rounded-full capitalize">{prefillType}</span>
+              <span className="text-xs bg-slate-700/50 text-slate-400 px-2 py-0.5 rounded-full capitalize">
+                {prefillType}
+              </span>
             </div>
           )}
 
