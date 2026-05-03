@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(curl -s \"https://query1.finance.yahoo.com/v8/finance/chart/AAPL?range=5d&interval=1d\" -H \"User-Agent: Mozilla/5.0\")"
+    ]
+  }
+}
