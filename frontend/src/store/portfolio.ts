@@ -155,7 +155,7 @@ export function computeHoldingRows(
     .map((h): HoldingRow | null => {
       const priceKey = h.type === "crypto" ? (h.coinId ?? h.ticker) : h.ticker;
       const priceData = prices[priceKey];
-      if (!h.trades.length || !priceData) return null;
+      if (!h.trades?.length || !priceData) return null;
 
       const totalShares = h.trades.reduce((s, t) => s + t.quantity, 0);
       // Stocks are purchased in USD → convert to SGD. Crypto is purchased in SGD → keep as-is.

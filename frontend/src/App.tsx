@@ -143,7 +143,10 @@ export default function App() {
     if (!token || !import.meta.env.PROD) return;
     loadPortfolio()
       .then((data) => {
-        setPortfolio(data.holdings as never, data.watchlist as never);
+        setPortfolio(
+          Array.isArray(data.holdings) ? (data.holdings as never) : [],
+          Array.isArray(data.watchlist) ? (data.watchlist as never) : [],
+        );
       })
       .catch(() => {})
       .finally(() => setDbLoaded(true));
@@ -158,7 +161,8 @@ export default function App() {
   }, [token]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
-    if (!token || (holdings.length === 0 && watchlist.length === 0)) return;
+    if (!token || !holdings || !watchlist) return;
+    if (holdings.length === 0 && watchlist.length === 0) return;
 
     async function refreshPrices() {
       const updates: typeof prices = { ...prices };
