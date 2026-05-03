@@ -97,8 +97,10 @@ export const usePortfolioStore = create<PortfolioState>()(
     }),
     {
       name: "portfolio-storage",
-      partialize: (state) => ({ holdings: state.holdings, watchlist: state.watchlist }),
-      skipHydration: import.meta.env.PROD,
+      partialize: (state) =>
+        import.meta.env.PROD
+          ? {}
+          : { holdings: state.holdings, watchlist: state.watchlist },
     }
   )
 );
