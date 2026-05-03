@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { fetchCryptoPrice } from "./api/crypto";
 import { fetchStockPrice, fetchUsdToSgd, loadPortfolio, savePortfolio, syncHoldings } from "./api/stocks";
 import { LoginScreen } from "./components/LoginScreen";
@@ -135,19 +135,18 @@ export default function App() {
   const [tab, setTab] = useState<Tab>("portfolio");
   const [showAdd, setShowAdd] = useState(false);
   const [showWatchlistAdd, setShowWatchlistAdd] = useState(false);
-  // Gates the save effect so we don't overwrite DB with stale localStorage on first mount
-  const dbLoaded = useRef(false);
+  // In dev, localStorage is used so no DB load needed; in prod, wait for DB
+  const [dbLoaded, setDbLoaded] = useState(!import.meta.env.PROD);
 
-  // Load portfolio from DB on login — DB is always source of truth
+  // Load portfolio from DB on login — DB is always source of truth in production
   useEffect(() => {
-    if (!token) return;
-    dbLoaded.current = false;
+    if (!token || !import.meta.env.PROD) return;
     loadPortfolio()
       .then((data) => {
-        dbLoaded.current = true;
         setPortfolio(data.holdings as never, data.watchlist as never);
       })
-      .catch(() => { dbLoaded.current = true; });
+      .catch(() => {})
+      .finally(() => setDbLoaded(true));
   }, [token]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Fetch FX rate once on login
@@ -205,14 +204,19 @@ export default function App() {
 
   const usdToSgd = usePortfolioStore((s) => s.usdToSgd);
 
-  // Save to DB only after initial DB load — prevents stale localStorage overwriting DB on mount
+  // Save to DB only after initial DB load — prevents stale data overwriting DB on mount
   useEffect(() => {
-    if (!token || !dbLoaded.current) return;
+    if (!token || !dbLoaded) return;
     savePortfolio(holdings, watchlist).catch(() => {});
     if (holdings.length > 0) syncHoldings(holdings, usdToSgd).catch(() => {});
   }, [token, holdings, watchlist]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!token) return <LoginScreen />;
+  if (!dbLoaded) return (
+    <div className="min-h-screen bg-[#0f1117] flex items-center justify-center">
+      <p className="text-slate-400 text-sm">Loading…</p>
+    </div>
+  );
 
   function handleAdd() {
     if (tab === "watchlist") setShowWatchlistAdd(true);
