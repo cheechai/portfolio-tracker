@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { fetchCryptoPrice } from "./api/crypto";
 import { fetchStockPrice, fetchUsdToSgd, loadPortfolio, savePortfolio, syncHoldings } from "./api/stocks";
 import { LoginScreen } from "./components/LoginScreen";
@@ -135,17 +135,19 @@ export default function App() {
   const [tab, setTab] = useState<Tab>("portfolio");
   const [showAdd, setShowAdd] = useState(false);
   const [showWatchlistAdd, setShowWatchlistAdd] = useState(false);
+  // Gates the save effect so we don't overwrite DB with stale localStorage on first mount
+  const dbLoaded = useRef(false);
 
-  // Load portfolio from DB on login — DB is source of truth
+  // Load portfolio from DB on login — DB is always source of truth
   useEffect(() => {
     if (!token) return;
+    dbLoaded.current = false;
     loadPortfolio()
       .then((data) => {
-        if (data.holdings.length > 0 || data.watchlist.length > 0) {
-          setPortfolio(data.holdings as never, data.watchlist as never);
-        }
+        setPortfolio(data.holdings as never, data.watchlist as never);
       })
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => { dbLoaded.current = true; });
   }, [token]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Fetch FX rate once on login
@@ -203,9 +205,9 @@ export default function App() {
 
   const usdToSgd = usePortfolioStore((s) => s.usdToSgd);
 
-  // Save to DB and sync Telegram job whenever holdings/watchlist change
+  // Save to DB only after initial DB load — prevents stale localStorage overwriting DB on mount
   useEffect(() => {
-    if (!token) return;
+    if (!token || !dbLoaded.current) return;
     savePortfolio(holdings, watchlist).catch(() => {});
     if (holdings.length > 0) syncHoldings(holdings, usdToSgd).catch(() => {});
   }, [token, holdings, watchlist]); // eslint-disable-line react-hooks/exhaustive-deps
