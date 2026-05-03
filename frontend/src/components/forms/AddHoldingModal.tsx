@@ -6,9 +6,11 @@ import { COINGECKO_IDS, usePortfolioStore } from "../../store/portfolio";
 interface Props {
   onClose: () => void;
   prefillTicker?: string;
+  prefillType?: "stock" | "crypto";
+  prefillCoinId?: string;
 }
 
-export function AddHoldingModal({ onClose, prefillTicker }: Props) {
+export function AddHoldingModal({ onClose, prefillTicker, prefillType, prefillCoinId }: Props) {
   const addHolding = usePortfolioStore((s) => s.addHolding);
   const addTrade = usePortfolioStore((s) => s.addTrade);
   const holdings = usePortfolioStore((s) => s.holdings);
@@ -16,8 +18,8 @@ export function AddHoldingModal({ onClose, prefillTicker }: Props) {
   const prices = usePortfolioStore((s) => s.prices);
 
   const [ticker, setTicker] = useState(prefillTicker ?? "");
-  const [type, setType] = useState<"stock" | "crypto">("stock");
-  const [coinId, setCoinId] = useState("");
+  const [type, setType] = useState<"stock" | "crypto">(prefillType ?? "stock");
+  const [coinId, setCoinId] = useState(prefillCoinId ?? "");
   const [quantity, setQuantity] = useState("");
   const [price, setPrice] = useState("");
   const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
