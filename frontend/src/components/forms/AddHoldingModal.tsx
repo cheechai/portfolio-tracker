@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { fetchCryptoPrice } from "../../api/crypto";
 import { fetchStockPrice } from "../../api/stocks";
-import { COINGECKO_IDS, usePortfolioStore } from "../../store/portfolio";
+import { usePortfolioStore } from "../../store/portfolio";
 
 interface Props {
   onClose: () => void;
@@ -19,7 +19,7 @@ export function AddHoldingModal({ onClose, prefillTicker, prefillType, prefillCo
 
   const [ticker, setTicker] = useState(prefillTicker ?? "");
   const [type, setType] = useState<"stock" | "crypto">(prefillType ?? "stock");
-  const [coinId, setCoinId] = useState(prefillCoinId ?? "");
+  const [coinId, setCoinId] = useState(prefillCoinId ?? ""); // only used for chart history (CoinGecko ID)
   const [quantity, setQuantity] = useState("");
   const [price, setPrice] = useState("");
   const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
@@ -41,16 +41,9 @@ export function AddHoldingModal({ onClose, prefillTicker, prefillType, prefillCo
         setResolvedPrice(data.price);
         setPrices({ ...prices, [sym]: data });
       } else {
-        const id = coinId || COINGECKO_IDS[sym];
-        if (!id) {
-          setError(`Unknown crypto "${sym}". Please enter its CoinGecko ID (e.g. "bitcoin").`);
-          setLoading(false);
-          return;
-        }
-        const data = await fetchCryptoPrice(sym, id);
+        const data = await fetchCryptoPrice(sym);
         setResolvedPrice(data.price);
-        setPrices({ ...prices, [id]: data });
-        setCoinId(id);
+        setPrices({ ...prices, [sym]: data });
       }
       setStep("trade");
     } catch (e: unknown) {
@@ -65,7 +58,7 @@ export function AddHoldingModal({ onClose, prefillTicker, prefillType, prefillCo
     if (!quantity || !price) return;
     const sym = ticker.toUpperCase();
     if (!isAddingTrade) {
-      addHolding({ ticker: sym, type, coinId: type === "crypto" ? coinId : undefined });
+      addHolding({ ticker: sym, type, coinId: (type === "crypto" && coinId) ? coinId : undefined });
     }
     addTrade(sym, { date, quantity: parseFloat(quantity), purchasePrice: parseFloat(price) });
     onClose();
@@ -116,19 +109,6 @@ export function AddHoldingModal({ onClose, prefillTicker, prefillType, prefillCo
                 className="w-full bg-[#0f1117] border border-slate-700 rounded-xl px-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
               />
             </div>
-            {type === "crypto" && !COINGECKO_IDS[ticker] && ticker.length > 0 && (
-              <div>
-                <label className="text-xs text-slate-400 mb-1 block">CoinGecko ID</label>
-                <input
-                  type="text"
-                  value={coinId}
-                  onChange={(e) => setCoinId(e.target.value.toLowerCase())}
-                  placeholder="e.g. bitcoin, ethereum"
-                  className="w-full bg-[#0f1117] border border-slate-700 rounded-xl px-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
-                />
-                <p className="text-xs text-slate-500 mt-1">Find the ID at coingecko.com</p>
-              </div>
-            )}
             {error && <p className="text-red-400 text-sm">{error}</p>}
             <button
               onClick={handleTickerNext}

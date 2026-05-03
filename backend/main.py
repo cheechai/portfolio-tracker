@@ -227,41 +227,51 @@ async def get_usd_sgd(token: str = Depends(verify_token)):
             return {"usd_to_sgd": 1.35}
 
 
-# ── Crypto via CoinGecko ──────────────────────────────────────────────────────
+# ── Crypto prices via Binance ─────────────────────────────────────────────────
 
-@app.get("/crypto/{coin_id}")
-async def get_crypto(coin_id: str, token: str = Depends(verify_token)):
-    key = f"crypto:{coin_id.lower()}"
-    cached = _cached(key)
-    if cached:
-        return cached
-
+async def _binance_price(symbol: str) -> dict:
+    """Fetch 24hr ticker for a single USDT pair from Binance."""
+    pair = symbol.upper() + "USDT"
+    key = f"crypto:{symbol.upper()}"
+    hit = _cached(key)
+    if hit:
+        return hit
     async with httpx.AsyncClient(timeout=10) as client:
+        r = await client.get(
+            "https://api.binance.com/api/v3/ticker/24hr",
+            params={"symbol": pair},
+        )
+        r.raise_for_status()
+        raw = r.json()
+        data = {
+            "ticker": symbol.upper(),
+            "price": float(raw["lastPrice"]),
+            "change_pct": float(raw["priceChangePercent"]),
+        }
+        return _set_cache(key, data)
+
+@app.get("/crypto/prices")
+async def get_crypto_prices(tickers: str, token: str = Depends(verify_token)):
+    """Batch price fetch — tickers is a comma-separated list of crypto symbols (e.g. BTC,ETH,SOL)."""
+    symbols = [s.strip().upper() for s in tickers.split(",") if s.strip()]
+    if not symbols:
+        return {}
+    import asyncio
+    results = {}
+    async def fetch_one(sym: str):
         try:
-            r = await client.get(
-                "https://api.coingecko.com/api/v3/simple/price",
-                params={
-                    "ids": coin_id.lower(),
-                    "vs_currencies": "usd",
-                    "include_24hr_change": "true",
-                    "include_24hr_vol": "true",
-                },
-            )
-            r.raise_for_status()
-            raw = r.json()
-            if coin_id.lower() not in raw:
-                raise HTTPException(status_code=404, detail=f"Coin not found: {coin_id}")
-            coin = raw[coin_id.lower()]
-            data = {
-                "coin_id": coin_id.lower(),
-                "price": coin.get("usd"),
-                "change_pct": coin.get("usd_24h_change"),
-            }
-            return _set_cache(key, data)
-        except HTTPException:
-            raise
-        except Exception as e:
-            raise HTTPException(status_code=500, detail=str(e))
+            results[sym] = await _binance_price(sym)
+        except Exception:
+            pass  # skip unknown pairs silently
+    await asyncio.gather(*[fetch_one(s) for s in symbols])
+    return results
+
+@app.get("/crypto/{ticker}")
+async def get_crypto(ticker: str, token: str = Depends(verify_token)):
+    try:
+        return await _binance_price(ticker)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.get("/crypto/movers/top")
@@ -441,7 +451,6 @@ async def send_daily_summary():
     for h in _holdings_store:
         ticker = h["ticker"]
         htype = h["type"]
-        coin_id = h.get("coinId")
         trades = h.get("trades", [])
         if not trades:
             continue
@@ -458,15 +467,16 @@ async def send_daily_summary():
                 price_sgd = price_usd * _usd_to_sgd
                 cost_sgd = sum(t["quantity"] * t["purchasePrice"] * _usd_to_sgd for t in trades)
             else:
-                cid = coin_id or ticker.lower()
+                pair = ticker.upper() + "USDT"
                 async with httpx.AsyncClient(timeout=10) as client:
                     r = await client.get(
-                        "https://api.coingecko.com/api/v3/simple/price",
-                        params={"ids": cid, "vs_currencies": "usd", "include_24hr_change": "true"},
+                        "https://api.binance.com/api/v3/ticker/24hr",
+                        params={"symbol": pair},
                     )
-                    data = r.json().get(cid, {})
-                price_usd = data.get("usd", 0)
-                change_pct = data.get("usd_24h_change", 0)
+                    r.raise_for_status()
+                    data = r.json()
+                price_usd = float(data["lastPrice"])
+                change_pct = float(data["priceChangePercent"])
                 price_sgd = price_usd * _usd_to_sgd
                 cost_sgd = sum(t["quantity"] * t["purchasePrice"] for t in trades)
 

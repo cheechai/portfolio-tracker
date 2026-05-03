@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { fetchCryptoPrice } from "../../api/crypto";
 import { fetchStockPrice } from "../../api/stocks";
-import { COINGECKO_IDS, usePortfolioStore } from "../../store/portfolio";
+import { usePortfolioStore } from "../../store/portfolio";
 
 interface Props {
   onClose: () => void;
@@ -37,15 +37,9 @@ export function AddWatchlistModal({ onClose, prefillTicker, prefillType, prefill
         setPrices({ ...prices, [sym]: data });
         addToWatchlist({ ticker: sym, type: "stock" });
       } else {
-        const id = coinId || COINGECKO_IDS[sym];
-        if (!id) {
-          setError(`Unknown crypto "${sym}". Please enter its CoinGecko ID.`);
-          setLoading(false);
-          return;
-        }
-        const data = await fetchCryptoPrice(sym, id);
-        setPrices({ ...prices, [id]: data });
-        addToWatchlist({ ticker: sym, type: "crypto", coinId: id });
+        const data = await fetchCryptoPrice(sym);
+        setPrices({ ...prices, [sym]: data });
+        addToWatchlist({ ticker: sym, type: "crypto" });
       }
       onClose();
     } catch (err: unknown) {
@@ -100,19 +94,6 @@ export function AddWatchlistModal({ onClose, prefillTicker, prefillType, prefill
                 />
               </div>
 
-              {type === "crypto" && !COINGECKO_IDS[ticker] && ticker.length > 0 && (
-                <div>
-                  <label className="text-xs text-slate-400 mb-1 block">CoinGecko ID</label>
-                  <input
-                    type="text"
-                    value={coinId}
-                    onChange={(e) => setCoinId(e.target.value.toLowerCase())}
-                    placeholder="e.g. bitcoin, ethereum"
-                    className="w-full bg-[#0f1117] border border-slate-700 rounded-xl px-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
-                  />
-                  <p className="text-xs text-slate-500 mt-1">Find the ID at coingecko.com</p>
-                </div>
-              )}
             </>
           )}
 

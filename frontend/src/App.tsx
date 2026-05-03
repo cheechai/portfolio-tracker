@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { fetchCryptoPrice } from "./api/crypto";
+import { fetchCryptoPrices } from "./api/crypto";
 import { fetchStockPrice, fetchUsdToSgd, loadPortfolio, savePortfolio, syncHoldings } from "./api/stocks";
 import { LoginScreen } from "./components/LoginScreen";
 import { AddHoldingModal } from "./components/forms/AddHoldingModal";
@@ -11,7 +11,7 @@ import { PortfolioSummary } from "./components/portfolio/PortfolioSummary";
 import { TickerDrawer } from "./components/ticker/TickerDrawer";
 import { WatchlistTable } from "./components/watchlist/WatchlistTable";
 import { useAuthStore } from "./store/auth";
-import { COINGECKO_IDS, usePortfolioStore } from "./store/portfolio";
+import { usePortfolioStore } from "./store/portfolio";
 
 import type { Tab } from "./types";
 
@@ -166,37 +166,26 @@ export default function App() {
 
     async function refreshPrices() {
       const updates: typeof prices = { ...prices };
+
+      // Batch all crypto tickers into one Binance call
+      const cryptoTickers = [
+        ...holdings.filter((h) => h.type === "crypto").map((h) => h.ticker),
+        ...watchlist.filter((w) => w.type === "crypto").map((w) => w.ticker),
+      ];
+      const stockTickers = [
+        ...holdings.filter((h) => h.type === "stock").map((h) => h.ticker),
+        ...watchlist.filter((w) => w.type === "stock").map((w) => w.ticker),
+      ];
+
       await Promise.allSettled([
-        ...holdings.map(async (h) => {
-          try {
-            if (h.type === "stock") {
-              const data = await fetchStockPrice(h.ticker);
-              updates[h.ticker] = data;
-            } else {
-              const id =
-                h.coinId ?? COINGECKO_IDS[h.ticker] ?? h.ticker.toLowerCase();
-              const data = await fetchCryptoPrice(h.ticker, id);
-              updates[id] = data;
-            }
-          } catch {
-            // skip failed fetches silently
-          }
+        fetchCryptoPrices(cryptoTickers).then((result) => {
+          Object.assign(updates, result);
         }),
-        ...watchlist.map(async (w) => {
-          try {
-            if (w.type === "stock") {
-              const data = await fetchStockPrice(w.ticker);
-              updates[w.ticker] = data;
-            } else {
-              const id =
-                w.coinId ?? COINGECKO_IDS[w.ticker] ?? w.ticker.toLowerCase();
-              const data = await fetchCryptoPrice(w.ticker, id);
-              updates[id] = data;
-            }
-          } catch {
-            // skip failed fetches silently
-          }
-        }),
+        ...stockTickers.map((ticker) =>
+          fetchStockPrice(ticker)
+            .then((data) => { updates[ticker] = data; })
+            .catch(() => {})
+        ),
       ]);
       setPrices(updates);
     }

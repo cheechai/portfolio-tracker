@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { fetchCryptoHistory } from "../../api/crypto";
 import { fetchHistory } from "../../api/stocks";
-import { COINGECKO_IDS, usePortfolioStore } from "../../store/portfolio";
+import { usePortfolioStore } from "../../store/portfolio";
 import type { OHLCVBar } from "../../types";
 import { AddHoldingModal } from "../forms/AddHoldingModal";
 import { IndicatorPanel } from "./IndicatorPanel";
@@ -34,11 +34,11 @@ export function TickerDrawer() {
   const watchlistItem = watchlist.find((w) => w.ticker === selectedTicker);
   const item = holding ?? watchlistItem;
   const isCrypto = item?.type === "crypto";
+  // coinId is the CoinGecko ID used only for chart history — falls back to lowercase ticker
   const coinId = item?.type === "crypto"
-    ? (item.coinId ?? COINGECKO_IDS[item.ticker] ?? item.ticker.toLowerCase())
+    ? (item.coinId ?? item.ticker.toLowerCase())
     : null;
-  const priceKey = isCrypto ? (coinId ?? selectedTicker ?? "") : (selectedTicker ?? "");
-  const priceData = priceKey ? prices[priceKey] : null;
+  const priceData = selectedTicker ? prices[selectedTicker] : null;
 
   useEffect(() => {
     if (!selectedTicker) return;

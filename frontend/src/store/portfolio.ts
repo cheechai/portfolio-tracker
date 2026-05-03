@@ -153,7 +153,7 @@ export function computeHoldingRows(
 ): HoldingRow[] {
   return holdings
     .map((h): HoldingRow | null => {
-      const priceKey = h.type === "crypto" ? (h.coinId ?? h.ticker) : h.ticker;
+      const priceKey = h.ticker;
       const priceData = prices[priceKey];
       if (!h.trades?.length || !priceData) return null;
 

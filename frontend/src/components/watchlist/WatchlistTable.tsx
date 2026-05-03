@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { COINGECKO_IDS, usePortfolioStore } from "../../store/portfolio";
+import { usePortfolioStore } from "../../store/portfolio";
 import type { WatchlistItem } from "../../types";
 import { AddHoldingModal } from "../forms/AddHoldingModal";
 
@@ -20,9 +20,7 @@ interface WatchlistRowProps {
 
 function WatchlistRow({ item, onViewChart, onBuy, onRemove, usdToSgd }: WatchlistRowProps) {
   const prices = usePortfolioStore((s) => s.prices);
-  const priceKey = item.type === "crypto"
-    ? (item.coinId ?? COINGECKO_IDS[item.ticker] ?? item.ticker.toLowerCase())
-    : item.ticker;
+  const priceKey = item.ticker;
   const priceData = prices[priceKey];
   const pos = (priceData?.changePct ?? 0) >= 0;
 

@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { fetchCryptoMovers } from "../../api/crypto";
 import { fetchStockMovers } from "../../api/stocks";
 import { AddWatchlistModal } from "../forms/AddWatchlistModal";
-import { COINGECKO_IDS, usePortfolioStore } from "../../store/portfolio";
+import { usePortfolioStore } from "../../store/portfolio";
 import type { Mover } from "../../types";
 
 function MoverRow({ item, isCrypto }: { item: Mover; isCrypto: boolean }) {
@@ -10,7 +10,6 @@ function MoverRow({ item, isCrypto }: { item: Mover; isCrypto: boolean }) {
   const pos = (item.change_pct ?? 0) >= 0;
   const label = isCrypto ? (item.symbol ?? item.coin_id ?? "") : (item.ticker ?? "");
   const sym = label.toUpperCase();
-  const coinId = isCrypto ? (item.coin_id ?? COINGECKO_IDS[sym] ?? sym.toLowerCase()) : undefined;
   const isWatched = watchlist.some((w) => w.ticker === sym);
 
   const [showModal, setShowModal] = useState(false);
@@ -48,7 +47,6 @@ function MoverRow({ item, isCrypto }: { item: Mover; isCrypto: boolean }) {
           onClose={() => setShowModal(false)}
           prefillTicker={sym}
           prefillType={isCrypto ? "crypto" : "stock"}
-          prefillCoinId={coinId}
         />
       )}
     </>

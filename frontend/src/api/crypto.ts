@@ -14,17 +14,47 @@ function setCache<T>(key: string, data: T): T {
   return data;
 }
 
-export async function fetchCryptoPrice(ticker: string, coinId: string): Promise<PriceData> {
-  const key = `crypto:${coinId}`;
+export async function fetchCryptoPrice(ticker: string): Promise<PriceData> {
+  const key = `crypto:${ticker.toUpperCase()}`;
   const hit = cached<PriceData>(key);
   if (hit) return hit;
-  const raw = await apiFetch<{ coin_id: string; price: number; change_pct: number }>(`/crypto/${coinId}`);
+  const raw = await apiFetch<{ ticker: string; price: number; change_pct: number }>(`/crypto/${ticker.toUpperCase()}`);
   return setCache(key, {
-    ticker,
+    ticker: raw.ticker,
     price: raw.price,
     changePct: raw.change_pct ?? 0,
     lastUpdated: Date.now(),
   });
+}
+
+export async function fetchCryptoPrices(tickers: string[]): Promise<Record<string, PriceData>> {
+  if (!tickers.length) return {};
+
+  const result: Record<string, PriceData> = {};
+  const misses: string[] = [];
+  for (const t of tickers) {
+    const hit = cached<PriceData>(`crypto:${t.toUpperCase()}`);
+    if (hit) result[t.toUpperCase()] = hit;
+    else misses.push(t.toUpperCase());
+  }
+
+  if (misses.length) {
+    const raw = await apiFetch<Record<string, { ticker: string; price: number; change_pct: number }>>(
+      `/crypto/prices?tickers=${encodeURIComponent(misses.join(","))}`,
+    );
+    for (const [sym, entry] of Object.entries(raw)) {
+      const data: PriceData = {
+        ticker: sym,
+        price: entry.price,
+        changePct: entry.change_pct ?? 0,
+        lastUpdated: Date.now(),
+      };
+      setCache(`crypto:${sym}`, data);
+      result[sym] = data;
+    }
+  }
+
+  return result;
 }
 
 export async function fetchCryptoHistory(coinId: string, period: string): Promise<import("../types").OHLCVBar[]> {
