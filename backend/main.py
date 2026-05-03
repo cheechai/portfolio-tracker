@@ -556,7 +556,13 @@ async def load_portfolio(token: str = Depends(verify_token)):
     row = await _db.fetchrow("SELECT data FROM portfolio WHERE id = 'default'")
     if not row:
         return {"holdings": [], "watchlist": []}
-    return row["data"]
+    data = row["data"]
+    if isinstance(data, str):
+        data = json.loads(data)
+    return {
+        "holdings": data.get("holdings") or [],
+        "watchlist": data.get("watchlist") or [],
+    }
 
 @app.post("/portfolio")
 async def save_portfolio(payload: PortfolioPayload, token: str = Depends(verify_token)):
