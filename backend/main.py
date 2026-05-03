@@ -76,6 +76,7 @@ def get_price(ticker: str, token: str = Depends(verify_token)):
         return cached
 
     try:
+        import datetime as dt
         t = yf.Ticker(ticker.upper())
         # Use 2-day history to get current and prev close reliably
         hist = t.history(period="2d")
@@ -84,6 +85,12 @@ def get_price(ticker: str, token: str = Depends(verify_token)):
         price = float(hist["Close"].iloc[-1])
         prev_close = float(hist["Close"].iloc[-2]) if len(hist) >= 2 else price
         change_pct = ((price - prev_close) / prev_close * 100) if prev_close else 0
+        # Zero out change if market didn't trade today (weekend/holiday)
+        sgt = dt.timezone(dt.timedelta(hours=8))
+        today_sgt = dt.datetime.now(tz=sgt).date()
+        last_bar_date = hist.index[-1].date()
+        if last_bar_date < today_sgt:
+            change_pct = 0.0
         data = {
             "ticker": ticker.upper(),
             "price": round(price, 4),
