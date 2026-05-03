@@ -227,49 +227,55 @@ async def get_usd_sgd(token: str = Depends(verify_token)):
             return {"usd_to_sgd": 1.35}
 
 
-# ── Crypto prices via Binance ─────────────────────────────────────────────────
+# ── Crypto prices via OKX ────────────────────────────────────────────────────
 
-async def _binance_price(symbol: str) -> dict:
-    """Fetch 24hr ticker for a single USDT pair from Binance."""
-    pair = symbol.upper() + "USDT"
+async def _okx_price(symbol: str) -> dict:
+    """Fetch spot ticker for a single USDT pair from OKX."""
+    inst_id = symbol.upper() + "-USDT"
     key = f"crypto:{symbol.upper()}"
     hit = _cached(key)
     if hit:
         return hit
     async with httpx.AsyncClient(timeout=10) as client:
         r = await client.get(
-            "https://api.binance.com/api/v3/ticker/24hr",
-            params={"symbol": pair},
+            "https://www.okx.com/api/v5/market/ticker",
+            params={"instId": inst_id},
         )
         r.raise_for_status()
         raw = r.json()
+        if raw.get("code") != "0" or not raw.get("data"):
+            raise ValueError(f"Unknown ticker: {symbol}")
+        d = raw["data"][0]
+        price = float(d["last"])
+        open24 = float(d["open24h"])
+        change_pct = (price - open24) / open24 * 100 if open24 else 0
         data = {
             "ticker": symbol.upper(),
-            "price": float(raw["lastPrice"]),
-            "change_pct": float(raw["priceChangePercent"]),
+            "price": price,
+            "change_pct": change_pct,
         }
         return _set_cache(key, data)
 
 @app.get("/crypto/prices")
 async def get_crypto_prices(tickers: str, token: str = Depends(verify_token)):
     """Batch price fetch — tickers is a comma-separated list of crypto symbols (e.g. BTC,ETH,SOL)."""
+    import asyncio
     symbols = [s.strip().upper() for s in tickers.split(",") if s.strip()]
     if not symbols:
         return {}
-    import asyncio
     results = {}
     async def fetch_one(sym: str):
         try:
-            results[sym] = await _binance_price(sym)
+            results[sym] = await _okx_price(sym)
         except Exception:
-            pass  # skip unknown pairs silently
+            pass
     await asyncio.gather(*[fetch_one(s) for s in symbols])
     return results
 
 @app.get("/crypto/{ticker}")
 async def get_crypto(ticker: str, token: str = Depends(verify_token)):
     try:
-        return await _binance_price(ticker)
+        return await _okx_price(ticker)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -467,16 +473,9 @@ async def send_daily_summary():
                 price_sgd = price_usd * _usd_to_sgd
                 cost_sgd = sum(t["quantity"] * t["purchasePrice"] * _usd_to_sgd for t in trades)
             else:
-                pair = ticker.upper() + "USDT"
-                async with httpx.AsyncClient(timeout=10) as client:
-                    r = await client.get(
-                        "https://api.binance.com/api/v3/ticker/24hr",
-                        params={"symbol": pair},
-                    )
-                    r.raise_for_status()
-                    data = r.json()
-                price_usd = float(data["lastPrice"])
-                change_pct = float(data["priceChangePercent"])
+                d = await _okx_price(ticker)
+                price_usd = d["price"]
+                change_pct = d["change_pct"]
                 price_sgd = price_usd * _usd_to_sgd
                 cost_sgd = sum(t["quantity"] * t["purchasePrice"] for t in trades)
 
