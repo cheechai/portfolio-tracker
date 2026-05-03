@@ -101,6 +101,12 @@ export const usePortfolioStore = create<PortfolioState>()(
         import.meta.env.PROD
           ? {}
           : { holdings: state.holdings, watchlist: state.watchlist },
+      merge: (persisted, current) => ({
+        ...current,
+        ...(persisted as object),
+        holdings: (persisted as PortfolioState)?.holdings ?? current.holdings,
+        watchlist: (persisted as PortfolioState)?.watchlist ?? current.watchlist,
+      }),
     }
   )
 );
