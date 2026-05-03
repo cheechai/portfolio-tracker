@@ -1,6 +1,6 @@
 [build]
 builder = "nixpacks"
-buildCommand = "npm run build"
+buildCommand = "npm install --include=optional && npm run build"
 
 [build.nixpacksPlan.phases.setup]
 nixPkgs = ["nodejs_22"]
