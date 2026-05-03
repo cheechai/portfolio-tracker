@@ -144,10 +144,10 @@ export default function App() {
     dbLoaded.current = false;
     loadPortfolio()
       .then((data) => {
+        dbLoaded.current = true;
         setPortfolio(data.holdings as never, data.watchlist as never);
       })
-      .catch(() => {})
-      .finally(() => { dbLoaded.current = true; });
+      .catch(() => { dbLoaded.current = true; });
   }, [token]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Fetch FX rate once on login
