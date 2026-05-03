@@ -64,6 +64,18 @@ export async function syncHoldings(
   });
 }
 
+export async function loadPortfolio(): Promise<{ holdings: unknown[]; watchlist: unknown[] }> {
+  return apiFetch("/portfolio");
+}
+
+export async function savePortfolio(holdings: unknown[], watchlist: unknown[]): Promise<void> {
+  await apiFetch("/portfolio", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ holdings, watchlist }),
+  });
+}
+
 export async function fetchUsdToSgd(): Promise<number> {
   const key = "fx:usd-sgd";
   const hit = cached<{ usd_to_sgd: number }>(key);

@@ -45,6 +45,7 @@ interface PortfolioState {
   setPrices: (prices: Record<string, PriceData>) => void;
   setUsdToSgd: (rate: number) => void;
   setSelectedTicker: (ticker: string | null) => void;
+  setPortfolio: (holdings: Holding[], watchlist: WatchlistItem[]) => void;
 }
 
 export const usePortfolioStore = create<PortfolioState>()(
@@ -91,6 +92,8 @@ export const usePortfolioStore = create<PortfolioState>()(
       setUsdToSgd: (rate) => set({ usdToSgd: rate }),
 
       setSelectedTicker: (ticker) => set({ selectedTicker: ticker }),
+
+      setPortfolio: (holdings, watchlist) => set({ holdings, watchlist }),
     }),
     {
       name: "portfolio-storage",

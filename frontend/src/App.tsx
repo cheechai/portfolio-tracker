@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { fetchCryptoPrice } from "./api/crypto";
-import { fetchStockPrice, fetchUsdToSgd, syncHoldings } from "./api/stocks";
+import { fetchStockPrice, fetchUsdToSgd, loadPortfolio, savePortfolio, syncHoldings } from "./api/stocks";
 import { LoginScreen } from "./components/LoginScreen";
 import { AddHoldingModal } from "./components/forms/AddHoldingModal";
 import { AddWatchlistModal } from "./components/forms/AddWatchlistModal";
@@ -129,11 +129,24 @@ export default function App() {
   const watchlist = usePortfolioStore((s) => s.watchlist);
   const setPrices = usePortfolioStore((s) => s.setPrices);
   const setUsdToSgd = usePortfolioStore((s) => s.setUsdToSgd);
+  const setPortfolio = usePortfolioStore((s) => s.setPortfolio);
   const prices = usePortfolioStore((s) => s.prices);
 
   const [tab, setTab] = useState<Tab>("portfolio");
   const [showAdd, setShowAdd] = useState(false);
   const [showWatchlistAdd, setShowWatchlistAdd] = useState(false);
+
+  // Load portfolio from DB on login — DB is source of truth
+  useEffect(() => {
+    if (!token) return;
+    loadPortfolio()
+      .then((data) => {
+        if (data.holdings.length > 0 || data.watchlist.length > 0) {
+          setPortfolio(data.holdings as never, data.watchlist as never);
+        }
+      })
+      .catch(() => {});
+  }, [token]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Fetch FX rate once on login
   useEffect(() => {
@@ -190,11 +203,12 @@ export default function App() {
 
   const usdToSgd = usePortfolioStore((s) => s.usdToSgd);
 
-  // Sync holdings to backend whenever they change so the daily Telegram job has fresh data
+  // Save to DB and sync Telegram job whenever holdings/watchlist change
   useEffect(() => {
-    if (!token || holdings.length === 0) return;
-    syncHoldings(holdings, usdToSgd).catch(() => {});
-  }, [token, holdings, usdToSgd]);
+    if (!token) return;
+    savePortfolio(holdings, watchlist).catch(() => {});
+    if (holdings.length > 0) syncHoldings(holdings, usdToSgd).catch(() => {});
+  }, [token, holdings, watchlist]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!token) return <LoginScreen />;
 

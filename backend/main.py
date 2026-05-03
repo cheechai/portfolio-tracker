@@ -1,6 +1,8 @@
+import json
 import os
 import time
 
+import asyncpg
 import httpx
 import yfinance as yf
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
@@ -16,10 +18,14 @@ APP_PASSWORD = os.getenv("APP_PASSWORD", "changeme")
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN", "")
 TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "")
+DATABASE_URL = os.getenv("DATABASE_URL", "")
 
 app = FastAPI(title="Portfolio Tracker API")
 
-# In-memory store for holdings synced from the frontend
+# DB connection pool
+_db: asyncpg.Pool | None = None
+
+# In-memory store for holdings (used by Telegram daily job)
 _holdings_store: list[dict] = []
 _usd_to_sgd: float = 1.35
 
@@ -507,10 +513,62 @@ async def send_daily_summary():
     await _send_telegram(msg)
 
 
-# ── Scheduler startup ─────────────────────────────────────────────────────────
+# ── Database ──────────────────────────────────────────────────────────────────
+
+async def get_db() -> asyncpg.Pool:
+    return _db
 
 @app.on_event("startup")
-async def start_scheduler():
+async def startup():
+    global _db
+    if DATABASE_URL:
+        _db = await asyncpg.create_pool(DATABASE_URL, min_size=1, max_size=5)
+        await _db.execute("""
+            CREATE TABLE IF NOT EXISTS portfolio (
+                id TEXT PRIMARY KEY DEFAULT 'default',
+                data JSONB NOT NULL,
+                updated_at TIMESTAMPTZ DEFAULT NOW()
+            )
+        """)
+
     scheduler = AsyncIOScheduler(timezone="Asia/Singapore")
     scheduler.add_job(send_daily_summary, CronTrigger(hour=8, minute=0, timezone="Asia/Singapore"))
     scheduler.start()
+
+@app.on_event("shutdown")
+async def shutdown():
+    if _db:
+        await _db.close()
+
+
+# ── Portfolio persistence ─────────────────────────────────────────────────────
+
+from pydantic import BaseModel as _BaseModel
+
+class PortfolioPayload(_BaseModel):
+    holdings: list[dict]
+    watchlist: list[dict]
+
+@app.get("/portfolio")
+async def load_portfolio(token: str = Depends(verify_token)):
+    if not _db:
+        return {"holdings": [], "watchlist": []}
+    row = await _db.fetchrow("SELECT data FROM portfolio WHERE id = 'default'")
+    if not row:
+        return {"holdings": [], "watchlist": []}
+    return row["data"]
+
+@app.post("/portfolio")
+async def save_portfolio(payload: PortfolioPayload, token: str = Depends(verify_token)):
+    if not _db:
+        return {"ok": True}
+    data = json.dumps({"holdings": payload.holdings, "watchlist": payload.watchlist})
+    await _db.execute("""
+        INSERT INTO portfolio (id, data, updated_at)
+        VALUES ('default', $1::jsonb, NOW())
+        ON CONFLICT (id) DO UPDATE SET data = $1::jsonb, updated_at = NOW()
+    """, data)
+    # Also update in-memory store for Telegram job
+    global _holdings_store
+    _holdings_store = payload.holdings
+    return {"ok": True}
